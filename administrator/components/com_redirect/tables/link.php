@@ -71,7 +71,14 @@ class RedirectTableLink extends JTable
 			}
 		}
 
-		// Check for duplicates
+		/*
+		 * In the database, old_url is limited to 255 characters.  Trim it down now, so that duplicate
+		 * detection works properly.  We can't rely on the database to detect duplicates using a unique
+		 * key because key lengths are limited to 191 characters in MySQL with the utf8mb4 character set.
+		 * That rules out using unique keys for columns over 191 characters.
+		 */
+		$this->old_url = substr($this->old_url, 0, 255);
+
 		if ($this->old_url == $this->new_url)
 		{
 			$this->setError(JText::_('COM_REDIRECT_ERROR_DUPLICATE_URLS'));

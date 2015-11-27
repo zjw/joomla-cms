@@ -68,6 +68,14 @@ class PlgSystemRedirect extends JPlugin
 		$uri     = JUri::getInstance();
 		$current = rawurldecode($uri->toString(array('scheme', 'host', 'port', 'path', 'query', 'fragment')));
 
+                /*
+                 * In the database, old_url is limited to 255 characters.  Trim the url down now, so that duplicate
+                 * detection works properly.  We can't rely on the database to detect duplicates using a unique
+                 * key because key lengths are limited to 191 characters in MySQL with the utf8mb4 character set.
+                 * That rules out using unique keys for columns over 191 characters.
+                 */
+                $current = substr($current, 0, 255);
+
 		// Attempt to ignore idiots.
 		if ((strpos($current, 'mosConfig_') !== false) || (strpos($current, '=http://') !== false))
 		{
@@ -89,6 +97,7 @@ class PlgSystemRedirect extends JPlugin
 		if (!$link or ($link->published != 1))
 		{
 			$currRel = rawurldecode($uri->toString(array('path', 'query', 'fragment')));
+                	$currRel = substr($currRel, 0, 255);
 			$query = $db->getQuery(true)
 				->select($db->quoteName('new_url'))
 				->select($db->quoteName('published'))

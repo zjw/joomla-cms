@@ -164,6 +164,9 @@ class JTableMenu extends JTableNested
 			return false;
 		}
 
+		// Aliases are truncated to 255 characters in the database.  Truncate it now to assure duplicate detection.
+		$this->alias = substr($this->alias, 0, 255);
+
 		return true;
 	}
 

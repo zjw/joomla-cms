@@ -186,24 +186,17 @@ class RedirectModelLinks extends JModelList
 	 *
 	 * @param   array  $batch_urls  Array of URLs to enter into the database
 	 *
-	 * @return bool
+	 * @return  array  An array of URLs not entered into the database (duplicates).
 	 */
 	public function batchProcess($batch_urls)
 	{
 		$db    = JFactory::getDbo();
-		$query = $db->getQuery(true);
+		$goodUrls = array();
+		$badUrls = array();
 
-		$columns = array(
-			$db->quoteName('old_url'),
-			$db->quoteName('new_url'),
-			$db->quoteName('referer'),
-			$db->quoteName('comment'),
-			$db->quoteName('hits'),
-			$db->quoteName('published'),
-			$db->quoteName('created_date')
-		);
-
-		$query->columns($columns);
+		$query = $db->getQuery(true)
+			->select($db->quoteName('id'))
+			->from('#__redirect_links');
 
 		foreach ($batch_urls as $batch_url)
 		{
@@ -217,6 +210,12 @@ class RedirectModelLinks extends JModelList
 				$old_url = $batch_url[0];
 			}
 
+			/*
+			 * old_url in the database is varchar(255).  Truncate it here so that a search for
+			 * duplicates works properly.
+			 */
+			$old_url = substr($old_url, 0, 255);
+
 			// Destination URL can also be an external URL
 			if (!empty($batch_url[1]))
 			{
@@ -227,16 +226,58 @@ class RedirectModelLinks extends JModelList
 				$new_url = '';
 			}
 
-			$query->insert($db->quoteName('#__redirect_links'), false)
-				->values(
-					$db->quote($old_url) . ', ' . $db->quote($new_url) . ' ,' . $db->quote('') . ', ' . $db->quote('') . ', 0, 0, ' .
-					$db->quote(JFactory::getDate()->toSql())
-				);
+			// Check if old_url already exists.
+			$query->clear('where')
+				->where($db->quoteName('old_url') . ' = ' . $db->quote($old_url));
+			$db->setQuery($query);
+			$result = $db->loadResult();
+
+			if (!is_null($result))
+			{
+				/*
+				 * A different entry already exists for old_url.  We don't permit
+				 * duplicate entries for old_url.  This used to be enforced with a UNIQUE
+				 * KEY on old_url in the database, but the key length had to be reduced,
+				 * so it could no longer be UNIQUE.  Consequently, we're checking for
+				 * uniqueness here.
+				 */
+				$badUrls[] = $old_url;
+			}
+			else
+			{
+				$goodUrls[] = array($old_url, $new_url);
+			}
 		}
 
-		$db->setQuery($query);
-		$db->execute();
+		if (!empty($goodUrls))
+		{
+			$query = $db->getQuery(true);
 
-		return true;
+			$columns = array(
+				$db->quoteName('old_url'),
+				$db->quoteName('new_url'),
+				$db->quoteName('referer'),
+				$db->quoteName('comment'),
+				$db->quoteName('hits'),
+				$db->quoteName('published'),
+				$db->quoteName('created_date')
+			);
+
+			$query->columns($columns);
+
+			foreach ($goodUrls as $goodUrl)
+			{
+				$query->insert($db->quoteName('#__redirect_links'), false)
+					->values(
+						$db->quote($goodUrl[0]) . ', ' . $db->quote($goodUrl[1]) . ' ,' . $db->quote('') . ', ' . $db->quote('') . ', 0, 0, ' .
+						$db->quote(JFactory::getDate()->toSql())
+					);
+			}
+
+			$db->setQuery($query);
+			$db->execute();
+		}
+
+		return $badUrls;
 	}
 }
