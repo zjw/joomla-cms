@@ -3,7 +3,7 @@
  * @package     Joomla.Libraries
  * @subpackage  Helper
  *
- * @copyright   Copyright (C) 2005 - 2014 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -15,9 +15,7 @@ defined('JPATH_PLATFORM') or die;
  * A class providing basic routing for urls that are for content types found in
  * the #__content_types table and rows found in the #__ucm_content table.
  *
- * @package     Joomla.Libraries
- * @subpackage  Helper
- * @since       3.1
+ * @since  3.1
  */
 class JHelperRoute
 {
@@ -26,12 +24,6 @@ class JHelperRoute
 	 * @since  3.1
 	 */
 	protected static $lookup;
-
-	/**
-	 * @var    array  Holds the language lookup
-	 * @since  3.2
-	 */
-	protected static $lang_lookup;
 
 	/**
 	 * @var    string  Option for the extension (such as com_content)
@@ -112,22 +104,13 @@ class JHelperRoute
 		}
 
 		// Deal with languages only if needed
-		if (!empty($language) && $language != '*' && JLanguageMultilang::isEnabled())
+		if (!empty($language) && $language !== '*' && JLanguageMultilang::isEnabled())
 		{
-			static::buildLanguageLookup();
-
-			if (isset(static::$lang_lookup[$language]))
-			{
-				$link .= '&lang=' . static::$lang_lookup[$language];
-				$needles['language'] = $language;
-			}
+			$link .= '&lang=' . $language;
+			$needles['language'] = $language;
 		}
 
 		if ($item = $this->findItem($needles))
-		{
-			$link .= '&Itemid=' . $item;
-		}
-		elseif ($item = $this->findItem())
 		{
 			$link .= '&Itemid=' . $item;
 		}
@@ -151,7 +134,7 @@ class JHelperRoute
 		$language = isset($needles['language']) ? $needles['language'] : '*';
 
 		// $this->extension may not be set if coming from a static method, check it
-		if (is_null($this->extension))
+		if ($this->extension === null)
 		{
 			$this->extension = $app->input->getCmd('option');
 		}
@@ -166,7 +149,7 @@ class JHelperRoute
 			$attributes = array('component_id');
 			$values     = array($component->id);
 
-			if ($language != '*')
+			if ($language !== '*')
 			{
 				$attributes[] = 'language';
 				$values[]     = array($needles['language'], '*');
@@ -197,7 +180,7 @@ class JHelperRoute
 						 * $language != * can override existing entries
 						 * $language == * cannot override existing entries
 						 */
-						if (!isset(static::$lookup[$language][$view][$item->query['id']]) || $item->language != '*')
+						if ($item->language !== '*' || !isset(static::$lookup[$language][$view][$item->query['id']]))
 						{
 							static::$lookup[$language][$view][$item->query['id']] = $item->id;
 						}
@@ -225,7 +208,7 @@ class JHelperRoute
 
 		$active = $menus->getActive();
 
-		if ($active && $active->component == $this->extension && ($active->language == '*' || !JLanguageMultilang::isEnabled()))
+		if ($active && $active->component === $this->extension && ($active->language === '*' || !JLanguageMultilang::isEnabled()))
 		{
 			return $active->id;
 		}
@@ -246,9 +229,17 @@ class JHelperRoute
 	 * @return  string
 	 *
 	 * @since   3.2
+	 *
+	 * @throws  InvalidArgumentException
 	 */
-	public static function getCategoryRoute($catid, $language = 0, $extension)
+	public static function getCategoryRoute($catid, $language = 0, $extension = '')
 	{
+		// Note: $extension is required but has to be an optional argument in the function call due to argument order
+		if (empty($extension))
+		{
+			throw new InvalidArgumentException('$extension is a required argument in JHelperRoute::getCategoryRoute');
+		}
+
 		if ($catid instanceof JCategoryNode)
 		{
 			$id       = $catid->id;
@@ -270,73 +261,31 @@ class JHelperRoute
 			$link = 'index.php?option=' . $extension . '&view=category&id=' . $id;
 
 			$needles = array(
-				'category' => array($id)
+				'category' => array($id),
 			);
 
-			if ($language && $language != '*' && JLanguageMultilang::isEnabled())
+			if ($language && $language !== '*' && JLanguageMultilang::isEnabled())
 			{
-				static::buildLanguageLookup();
+				$link .= '&lang=' . $language;
+				$needles['language'] = $language;
+			}
 
-				if (isset(static::$lang_lookup[$language]))
-				{
-					$link .= '&lang=' . static::$lang_lookup[$language];
-					$needles['language'] = $language;
-				}
+			// Create the link
+			if ($category)
+			{
+				$catids                = array_reverse($category->getPath());
+				$needles['category']   = $catids;
+				$needles['categories'] = $catids;
+
 			}
 
 			if ($item = static::lookupItem($needles))
 			{
 				$link .= '&Itemid=' . $item;
 			}
-			else
-			{
-				// Create the link
-				if ($category)
-				{
-					$catids                = array_reverse($category->getPath());
-					$needles['category']   = $catids;
-					$needles['categories'] = $catids;
-
-					if ($item = static::lookupItem($needles))
-					{
-						$link .= '&Itemid=' . $item;
-					}
-					elseif ($item = static::lookupItem())
-					{
-						$link .= '&Itemid=' . $item;
-					}
-				}
-			}
 		}
 
 		return $link;
-	}
-
-	/**
-	 * Builds the language lookup array
-	 *
-	 * @return  void
-	 *
-	 * @since   3.2
-	 */
-	protected static function buildLanguageLookup()
-	{
-		if (count(static::$lang_lookup) == 0)
-		{
-			$db    = JFactory::getDbo();
-			$query = $db->getQuery(true)
-				->select('a.sef AS sef')
-				->select('a.lang_code AS lang_code')
-				->from('#__languages AS a');
-
-			$db->setQuery($query);
-			$langs = $db->loadObjectList();
-
-			foreach ($langs as $lang)
-			{
-				static::$lang_lookup[$lang->lang_code] = $lang->sef;
-			}
-		}
 	}
 
 	/**

@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  Form
  *
- * @copyright   Copyright (C) 2005 - 2014 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -14,9 +14,7 @@ JFormHelper::loadFieldClass('list');
 /**
  * Form Field to load a list of content authors
  *
- * @package     Joomla.Libraries
- * @subpackage  Form
- * @since       3.2
+ * @since  3.2
  */
 class JFormFieldAuthor extends JFormFieldList
 {
@@ -51,8 +49,6 @@ class JFormFieldAuthor extends JFormFieldList
 		if (!isset(static::$options[$hash]))
 		{
 			static::$options[$hash] = parent::getOptions();
-
-			$options = array();
 
 			$db = JFactory::getDbo();
 

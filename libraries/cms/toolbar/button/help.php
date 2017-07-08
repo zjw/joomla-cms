@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  Toolbar
  *
- * @copyright   Copyright (C) 2005 - 2014 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Renders a help popup window button
  *
- * @package     Joomla.Libraries
- * @subpackage  Toolbar
- * @since       3.0
+ * @since  3.0
  */
 class JToolbarButtonHelp extends JToolbarButton
 {
@@ -77,10 +75,8 @@ class JToolbarButtonHelp extends JToolbarButton
 	 */
 	protected function _getCommand($ref, $com, $override, $component)
 	{
-		JHtml::_('behavior.framework');
-
 		// Get Help URL
-		$url = JHelp::createURL($ref, $com, $override, $component);
+		$url = JHelp::createUrl($ref, $com, $override, $component);
 		$url = htmlspecialchars($url, ENT_QUOTES);
 		$cmd = "Joomla.popupWindow('$url', '" . JText::_('JHELP', true) . "', 700, 500, 1)";
 

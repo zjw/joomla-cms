@@ -3,8 +3,8 @@
  * @package     Joomla.Administrator
  * @subpackage  com_finder
  *
- * @copyright   Copyright (C) 2005 - 2014 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
@@ -22,9 +22,7 @@ jimport('joomla.filesystem.file');
  * Note: All exceptions thrown from within this class should be caught
  * by the controller.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_finder
- * @since       3.1
+ * @since  3.1
  */
 class FinderIndexerDriverSqlsrv extends FinderIndexer
 {
@@ -142,8 +140,8 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 				. $db->quote($item->publish_end_date) . ', '
 				. $db->quote($item->start_date) . ', '
 				. $db->quote($item->end_date) . ', '
-				. (double) ($item->list_price ? $item->list_price : 0) . ', '
-				. (double) ($item->sale_price ? $item->sale_price : 0)
+				. (double) ($item->list_price ?: 0) . ', '
+				. (double) ($item->sale_price ?: 0)
 			);
 			$db->setQuery($query);
 			$db->execute();
@@ -169,8 +167,8 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 				->set($db->quoteName('publish_end_date') . ' = ' . $db->quote($item->publish_end_date))
 				->set($db->quoteName('start_date') . ' = ' . $db->quote($item->start_date))
 				->set($db->quoteName('end_date') . ' = ' . $db->quote($item->end_date))
-				->set($db->quoteName('list_price') . ' = ' . (double) ($item->list_price ? $item->list_price : 0))
-				->set($db->quoteName('sale_price') . ' = ' . (double) ($item->sale_price ? $item->sale_price : 0))
+				->set($db->quoteName('list_price') . ' = ' . (double) ($item->list_price ?: 0))
+				->set($db->quoteName('sale_price') . ' = ' . (double) ($item->sale_price ?: 0))
 				->where('link_id = ' . (int) $linkId);
 			$db->setQuery($query);
 			$db->execute();
@@ -223,7 +221,7 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 						}
 
 						// Tokenize a string of content and add it to the database.
-						$count += $this->tokenizeToDB($ip, $group, $item->language, $format);
+						$count += $this->tokenizeToDb($ip, $group, $item->language, $format);
 
 						// Check if we're approaching the memory limit of the token table.
 						if ($count > static::$state->options->get('memory_table_limit', 30000))
@@ -247,7 +245,7 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 					}
 
 					// Tokenize a string of content and add it to the database.
-					$count += $this->tokenizeToDB($item->$property, $group, $item->language, $format);
+					$count += $this->tokenizeToDb($item->$property, $group, $item->language, $format);
 
 					// Check if we're approaching the memory limit of the token table.
 					if ($count > static::$state->options->get('memory_table_limit', 30000))
@@ -274,7 +272,7 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 				FinderIndexerTaxonomy::addMap($linkId, $nodeId);
 
 				// Tokenize the node title and add them to the database.
-				$count += $this->tokenizeToDB($node->title, static::META_CONTEXT, $item->language, $format);
+				$count += $this->tokenizeToDb($node->title, static::META_CONTEXT, $item->language, $format);
 			}
 		}
 
@@ -288,7 +286,7 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 		 * aggregated data will be inserted into #__finder_tokens_aggregate
 		 * table.
 		 */
-		$query	= 'INSERT INTO ' . $db->quoteName('#__finder_tokens_aggregate') .
+		$query = 'INSERT INTO ' . $db->quoteName('#__finder_tokens_aggregate') .
 				' (' . $db->quoteName('term_id') .
 				', ' . $db->quoteName('term') .
 				', ' . $db->quoteName('stem') .
@@ -468,7 +466,7 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 		{
 			// Update the link counts for the terms.
 			$query->update('t')
-				->set('t.links = t.links - 1 from #__finder_terms AS t INNER JOIN #__finder_links_terms' . dechex($i) . ' AS AS m ON m.term_id = t.term_id')
+				->set('t.links = t.links - 1 from #__finder_terms AS t INNER JOIN #__finder_links_terms' . dechex($i) . ' AS m ON m.term_id = t.term_id')
 				->where('m.link_id = ' . $db->quote((int) $linkId));
 			$db->setQuery($query);
 			$db->execute();
@@ -542,7 +540,7 @@ class FinderIndexerDriverSqlsrv extends FinderIndexer
 	 * @since   3.1
 	 * @throws  Exception on database error.
 	 */
-	protected function addTokensToDB($tokens, $context = '')
+	protected function addTokensToDb($tokens, $context = '')
 	{
 		// Get the database object.
 		$db = JFactory::getDbo();

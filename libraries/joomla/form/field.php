@@ -3,18 +3,19 @@
  * @package     Joomla.Platform
  * @subpackage  Form
  *
- * @copyright   Copyright (C) 2005 - 2014 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
 defined('JPATH_PLATFORM') or die;
 
+use Joomla\String\Normalise;
+use Joomla\String\StringHelper;
+
 /**
  * Abstract Form Field class for the Joomla Platform.
  *
- * @package     Joomla.Platform
- * @subpackage  Form
- * @since       11.1
+ * @since  11.1
  */
 abstract class JFormField
 {
@@ -61,7 +62,7 @@ abstract class JFormField
 	protected $autofocus = false;
 
 	/**
-	 * The SimpleXMLElement object of the <field /> XML element that describes the form field.
+	 * The SimpleXMLElement object of the `<field>` XML element that describes the form field.
 	 *
 	 * @var    SimpleXMLElement
 	 * @since  11.1
@@ -289,6 +290,14 @@ abstract class JFormField
 	protected $onclick;
 
 	/**
+	 * The conditions to show/hide the field.
+	 *
+	 * @var    string
+	 * @since  3.7.0
+	 */
+	protected $showon;
+
+	/**
 	 * The count value for generated name field
 	 *
 	 * @var    integer
@@ -305,11 +314,26 @@ abstract class JFormField
 	protected static $generated_fieldname = '__field';
 
 	/**
+	 * Name of the layout being used to render the field
+	 *
+	 * @var    string
+	 * @since  3.5
+	 */
+	protected $layout;
+
+	/**
 	 * Layout to render the form field
 	 *
 	 * @var  string
 	 */
 	protected $renderLayout = 'joomla.form.renderfield';
+
+	/**
+	 * Layout to render the label
+	 *
+	 * @var  string
+	 */
+	protected $renderLabelLayout = 'joomla.form.renderlabel';
 
 	/**
 	 * Method to instantiate the form field object.
@@ -330,15 +354,15 @@ abstract class JFormField
 		// Detect the field type if not set
 		if (!isset($this->type))
 		{
-			$parts = JStringNormalise::fromCamelCase(get_called_class(), true);
+			$parts = Normalise::fromCamelCase(get_called_class(), true);
 
 			if ($parts[0] == 'J')
 			{
-				$this->type = JString::ucfirst($parts[count($parts) - 1], '_');
+				$this->type = StringHelper::ucfirst($parts[count($parts) - 1], '_');
 			}
 			else
 			{
-				$this->type = JString::ucfirst($parts[0], '_') . JString::ucfirst($parts[count($parts) - 1], '_');
+				$this->type = StringHelper::ucfirst($parts[0], '_') . StringHelper::ucfirst($parts[count($parts) - 1], '_');
 			}
 		}
 	}
@@ -368,6 +392,7 @@ abstract class JFormField
 			case 'validate':
 			case 'value':
 			case 'class':
+			case 'layout':
 			case 'labelclass':
 			case 'size':
 			case 'onchange':
@@ -379,6 +404,7 @@ abstract class JFormField
 			case 'autofocus':
 			case 'autocomplete':
 			case 'spellcheck':
+			case 'showon':
 				return $this->$name;
 
 			case 'input':
@@ -403,7 +429,7 @@ abstract class JFormField
 				return $this->getTitle();
 		}
 
-		return null;
+		return;
 	}
 
 	/**
@@ -428,11 +454,13 @@ abstract class JFormField
 			case 'hint':
 			case 'value':
 			case 'labelclass':
+			case 'layout':
 			case 'onchange':
 			case 'onclick':
 			case 'validate':
 			case 'pattern':
 			case 'group':
+			case 'showon':
 			case 'default':
 				$this->$name = (string) $value;
 				break;
@@ -524,9 +552,9 @@ abstract class JFormField
 	/**
 	 * Method to attach a JForm object to the field.
 	 *
-	 * @param   SimpleXMLElement  $element  The SimpleXMLElement object representing the <field /> tag for the form field object.
+	 * @param   SimpleXMLElement  $element  The SimpleXMLElement object representing the `<field>` tag for the form field object.
 	 * @param   mixed             $value    The form field value to validate.
-	 * @param   string            $group    The field name group control value. This acts as as an array container for the field.
+	 * @param   string            $group    The field name group control value. This acts as an array container for the field.
 	 *                                      For example if the field has name="foo" and the group value is set to "bar" then the
 	 *                                      full field name would end up being "bar[foo]".
 	 *
@@ -553,11 +581,9 @@ abstract class JFormField
 		$this->group = $group;
 
 		$attributes = array(
-			'multiple', 'name', 'id', 'hint', 'class', 'description', 'labelclass', 'onchange',
-			'onclick', 'validate', 'pattern', 'default', 'required',
-			'disabled', 'readonly', 'autofocus', 'hidden', 'autocomplete', 'spellcheck',
-			'translateHint', 'translateLabel','translate_label', 'translateDescription',
-			'translate_description' ,'size');
+			'multiple', 'name', 'id', 'hint', 'class', 'description', 'labelclass', 'onchange', 'onclick', 'validate', 'pattern', 'default',
+			'required', 'disabled', 'readonly', 'autofocus', 'hidden', 'autocomplete', 'spellcheck', 'translateHint', 'translateLabel',
+			'translate_label', 'translateDescription', 'translate_description', 'size', 'showon');
 
 		$this->default = isset($element['value']) ? (string) $element['value'] : $this->default;
 
@@ -575,6 +601,14 @@ abstract class JFormField
 
 		// Set the visibility.
 		$this->hidden = ($this->hidden || (string) $element['type'] == 'hidden');
+
+		$this->layout = !empty($this->element['layout']) ? (string) $this->element['layout'] : $this->layout;
+
+		// Add required to class list if field is required.
+		if ($this->required)
+		{
+			$this->class = trim($this->class . ' required');
+		}
 
 		return true;
 	}
@@ -662,7 +696,15 @@ abstract class JFormField
 	 *
 	 * @since   11.1
 	 */
-	abstract protected function getInput();
+	protected function getInput()
+	{
+		if (empty($this->layout))
+		{
+			throw new UnexpectedValueException(sprintf('%s has no layout assigned.', $this->name));
+		}
+
+		return $this->getRenderer($this->layout)->render($this->getLayoutData());
+	}
 
 	/**
 	 * Method to get the field title.
@@ -696,45 +738,25 @@ abstract class JFormField
 	 */
 	protected function getLabel()
 	{
-		$label = '';
-
 		if ($this->hidden)
 		{
-			return $label;
+			return '';
 		}
 
-		// Get the label text from the XML element, defaulting to the element name.
-		$text = $this->element['label'] ? (string) $this->element['label'] : (string) $this->element['name'];
-		$text = $this->translateLabel ? JText::_($text) : $text;
+		$data = $this->getLayoutData();
 
-		// Build the class for the label.
-		$class = !empty($this->description) ? 'hasTooltip' : '';
-		$class = $this->required == true ? $class . ' required' : $class;
-		$class = !empty($this->labelclass) ? $class . ' ' . $this->labelclass : $class;
+		// Forcing the Alias field to display the tip below
+		$position = $this->element['name'] == 'alias' ? ' data-placement="bottom" ' : '';
 
-		// Add the opening label tag and main attributes attributes.
-		$label .= '<label id="' . $this->id . '-lbl" for="' . $this->id . '" class="' . $class . '"';
+		// Here mainly for B/C with old layouts. This can be done in the layouts directly
+		$extraData = array(
+			'text'        => $data['label'],
+			'for'         => $this->id,
+			'classes'     => explode(' ', $data['labelclass']),
+			'position'    => $position,
+		);
 
-		// If a description is specified, use it to build a tooltip.
-		if (!empty($this->description))
-		{
-			// Don't translate discription if specified in the field xml.
-			$description = $this->translateDescription ? JText::_($this->description) : $this->description;
-			JHtml::_('bootstrap.tooltip');
-			$label .= ' title="' . JHtml::tooltipText(trim($text, ':'), $description, 0) . '"';
-		}
-
-		// Add the label text and closing tag.
-		if ($this->required)
-		{
-			$label .= '>' . $text . '<span class="star">&#160;*</span></label>';
-		}
-		else
-		{
-			$label .= '>' . $text . '</label>';
-		}
-
-		return $label;
+		return $this->getRenderer($this->renderLabelLayout)->render(array_merge($data, $extraData));
 	}
 
 	/**
@@ -749,7 +771,6 @@ abstract class JFormField
 	protected function getName($fieldName)
 	{
 		// To support repeated element, extensions can set this in plugin->onRenderSettings
-		$repeatCounter = empty($this->form->repeatCounter) ? 0 : $this->form->repeatCounter;
 
 		$name = '';
 
@@ -885,6 +906,23 @@ abstract class JFormField
 	}
 
 	/**
+	 * Render a layout of this field
+	 *
+	 * @param   string  $layoutId  Layout identifier
+	 * @param   array   $data      Optional data for the layout
+	 *
+	 * @return  string
+	 *
+	 * @since   3.5
+	 */
+	public function render($layoutId, $data = array())
+	{
+		$data = array_merge($this->getLayoutData(), $data);
+
+		return $this->getRenderer($layoutId)->render($data);
+	}
+
+	/**
 	 * Method to get a control group with label and input.
 	 *
 	 * @param   array  $options  Options to be passed into the rendering of the field
@@ -912,15 +950,115 @@ abstract class JFormField
 			$options['hiddenLabel'] = true;
 		}
 
-		if ($showon = $this->getAttribute('showon'))
+		if ($this->showon)
 		{
-			$showon   = explode(':', $showon, 2);
-			$options['class'] .= ' showon_' . implode(' showon_', explode(',', $showon[1]));
-			$id = $this->getName($showon[0]);
-			$options['rel'] = ' rel="showon_' . $id . '"';
+			$options['rel']           = ' data-showon=\'' .
+				json_encode(JFormHelper::parseShowOnConditions($this->showon, $this->formControl, $this->group)) . '\'';
 			$options['showonEnabled'] = true;
 		}
 
-		return JLayoutHelper::render($this->renderLayout, array('input' => $this->getInput(), 'label' => $this->getLabel(), 'options' => $options));
+		$data = array(
+			'input'   => $this->getInput(),
+			'label'   => $this->getLabel(),
+			'options' => $options,
+		);
+
+		return $this->getRenderer($this->renderLayout)->render($data);
+	}
+
+	/**
+	 * Method to get the data to be passed to the layout for rendering.
+	 *
+	 * @return  array
+	 *
+	 * @since 3.5
+	 */
+	protected function getLayoutData()
+	{
+		// Label preprocess
+		$label = $this->element['label'] ? (string) $this->element['label'] : (string) $this->element['name'];
+		$label = $this->translateLabel ? JText::_($label) : $label;
+
+		// Description preprocess
+		$description = !empty($this->description) ? $this->description : null;
+		$description = !empty($description) && $this->translateDescription ? JText::_($description) : $description;
+
+		$alt = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $this->fieldname);
+
+		return array(
+			'autocomplete' => $this->autocomplete,
+			'autofocus'    => $this->autofocus,
+			'class'        => $this->class,
+			'description'  => $description,
+			'disabled'     => $this->disabled,
+			'field'        => $this,
+			'group'        => $this->group,
+			'hidden'       => $this->hidden,
+			'hint'         => $this->translateHint ? JText::alt($this->hint, $alt) : $this->hint,
+			'id'           => $this->id,
+			'label'        => $label,
+			'labelclass'   => $this->labelclass,
+			'multiple'     => $this->multiple,
+			'name'         => $this->name,
+			'onchange'     => $this->onchange,
+			'onclick'      => $this->onclick,
+			'pattern'      => $this->pattern,
+			'readonly'     => $this->readonly,
+			'repeat'       => $this->repeat,
+			'required'     => (bool) $this->required,
+			'size'         => $this->size,
+			'spellcheck'   => $this->spellcheck,
+			'validate'     => $this->validate,
+			'value'        => $this->value,
+		);
+	}
+
+	/**
+	 * Allow to override renderer include paths in child fields
+	 *
+	 * @return  array
+	 *
+	 * @since   3.5
+	 */
+	protected function getLayoutPaths()
+	{
+		return array();
+	}
+
+	/**
+	 * Get the renderer
+	 *
+	 * @param   string  $layoutId  Id to load
+	 *
+	 * @return  JLayout
+	 *
+	 * @since   3.5
+	 */
+	protected function getRenderer($layoutId = 'default')
+	{
+		$renderer = new JLayoutFile($layoutId);
+
+		$renderer->setDebug($this->isDebugEnabled());
+
+		$layoutPaths = $this->getLayoutPaths();
+
+		if ($layoutPaths)
+		{
+			$renderer->setIncludePaths($layoutPaths);
+		}
+
+		return $renderer;
+	}
+
+	/**
+	 * Is debug enabled for this field
+	 *
+	 * @return  boolean
+	 *
+	 * @since   3.5
+	 */
+	protected function isDebugEnabled()
+	{
+		return $this->getAttribute('debug', 'false') === 'true';
 	}
 }

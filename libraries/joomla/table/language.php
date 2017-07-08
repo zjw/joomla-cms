@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Table
  *
- * @copyright   Copyright (C) 2005 - 2014 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Languages table.
  *
- * @package     Joomla.Platform
- * @subpackage  Table
- * @since       11.1
+ * @since  11.1
  */
 class JTableLanguage extends JTable
 {
@@ -60,9 +58,17 @@ class JTableLanguage extends JTable
 	 */
 	public function store($updateNulls = false)
 	{
-		// Verify that the sef field is unique
-		$table = JTable::getInstance('Language', 'JTable');
+		$table = JTable::getInstance('Language', 'JTable', array('dbo' => $this->getDbo()));
 
+		// Verify that the language code is unique
+		if ($table->load(array('lang_code' => $this->lang_code)) && ($table->lang_id != $this->lang_id || $this->lang_id == 0))
+		{
+			$this->setError(JText::_('JLIB_DATABASE_ERROR_LANGUAGE_UNIQUE_LANG_CODE'));
+
+			return false;
+		}
+
+		// Verify that the sef field is unique
 		if ($table->load(array('sef' => $this->sef)) && ($table->lang_id != $this->lang_id || $this->lang_id == 0))
 		{
 			$this->setError(JText::_('JLIB_DATABASE_ERROR_LANGUAGE_UNIQUE_SEF'));
@@ -71,17 +77,9 @@ class JTableLanguage extends JTable
 		}
 
 		// Verify that the image field is unique
-		if ($table->load(array('image' => $this->image)) && ($table->lang_id != $this->lang_id || $this->lang_id == 0))
+		if ($this->image && $table->load(array('image' => $this->image)) && ($table->lang_id != $this->lang_id || $this->lang_id == 0))
 		{
 			$this->setError(JText::_('JLIB_DATABASE_ERROR_LANGUAGE_UNIQUE_IMAGE'));
-
-			return false;
-		}
-
-		// Verify that the language code is unique
-		if ($table->load(array('lang_code' => $this->lang_code)) && ($table->lang_id != $this->lang_id || $this->lang_id == 0))
-		{
-			$this->setError(JText::_('JLIB_DATABASE_ERROR_LANGUAGE_UNIQUE_LANG_CODE'));
 
 			return false;
 		}
